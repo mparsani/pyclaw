@@ -180,14 +180,14 @@ class Solver(object):
         # No default BCs; user must set them
         self.bc_lower =    [None]*self.ndim
         self.bc_upper =    [None]*self.ndim
-        self.aux_bc_lower = [None]*self.ndim
-        self.aux_bc_upper = [None]*self.ndim
+        #self.aux_bc_lower = [None]*self.ndim
+        #self.aux_bc_upper = [None]*self.ndim
         
         self.user_bc_lower = None
         self.user_bc_upper = None
 
-        self.user_aux_bc_lower = None
-        self.user_aux_bc_upper = None
+        #self.user_aux_bc_lower = None
+        #self.user_aux_bc_upper = None
 
         self.compute_gauge_values = None
         r"""(function) - Function that computes quantities to be recorded at gaugues"""
@@ -195,6 +195,9 @@ class Solver(object):
         self.qbc          = None
         r""" Array to hold ghost cell values.  This is the one that gets passed
         to the Fortran code.  """
+
+        self.auxbc        = None
+        r"""(ndarray) - Array to hold ghost cell values of the aux array."""
 
         super(Solver,self).__init__()
 
@@ -302,17 +305,17 @@ class Solver(object):
         This is typically called by solver.setup().
         """
         import numpy as np
-        qbc_dim = [n+2*self.mbc for n in state.grid.ng]
+        bc_dim = [n+2*self.mbc for n in state.grid.ng]
         qbc_dim.insert(0,state.meqn)
         self.qbc = np.zeros(qbc_dim,order='F')
 
-        auxbc_dim = [n+2*self.mbc for n in state.grid.ng]
-        auxbc_dim.insert(0,state.maux)
-        self.auxbc = np.empty(auxbc_dim,order='F')
-        if state.maux>0:
-            self.apply_aux_bcs(state)
+        # Check to see if we need to instantiate the auxbc array
+        if state.maux > 0:
+            auxbc_dim.insert(0,state.maux)
+            self.auxbc = np.zeros(auxbc_dim,order='F')
 
-    def apply_q_bcs(self,state):
+    
+    def apply_bcs(self,state):
         r"""
         Fills in solver.qbc (the local vector), including ghost cell values.
     
@@ -406,6 +409,7 @@ class Solver(object):
         elif self.bc_lower[idim] == BC.outflow:
             for i in xrange(self.mbc):
                 qbc[:,i,...] = qbc[:,self.mbc,...]
+                
         elif self.bc_lower[idim] == BC.periodic:
             # This process owns the whole grid
             qbc[:,:self.mbc,...] = qbc[:,-2*self.mbc:-self.mbc,...]

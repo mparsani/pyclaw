@@ -168,42 +168,63 @@ class State(object):
         pass
 
 
-    def set_q_from_qbc(self,mbc,qbc):
+    def set_state_from_bc_arrays(self,mbc,qbc,auxbc=None):
         """
-        Set the value of q using the array qbc. for PetSolver, this
-        involves setting qbc as the local vector array then perform
+        Set the value of q and aux using the arrays qbc and auxbc. for PetSolver, this
+        involves setting qbc and auxbc as the local vector array then perform
         a local to global communication. 
         """
         
-        grid = self.grid
-        if grid.ndim == 1:
+        ndim = self.grid.ndim
+
+        if ndim == 1:
             self.q = qbc[:,mbc:-mbc]
-        elif grid.ndim == 2:
+        elif ndim == 2:
             self.q = qbc[:,mbc:-mbc,mbc:-mbc]
-        elif grid.ndim == 3:
+        elif ndim == 3:
             self.q = qbc[:,mbc:-mbc,mbc:-mbc,mbc:-mbc]
         else:
             raise Exception("Assumption (1 <= ndim <= 3) violated.")
 
-    def get_qbc_from_q(self,mbc,whichvec,qbc):
+        if self.maux > 0 and auxbc is not None:
+            if ndim == 1:
+                self.aux = auxbc[:,mbc:-mbc]
+            elif ndim == 2:
+                self.aux = auxbc[:,mbc:-mbc,mbc:-mbc]
+            elif ndim == 3:
+                self.aux = auxbc[:,mbc:-mbc,mbc:-mbc,mbc:-mbc]
+            else:
+                raise Exception("Assumption (1 <= ndim <= 3) violated.")
+
+
+    def get_bc_arrays_from_state(self,mbc,qbc,auxbc=None):
         """
         Fills in the interior of qbc (local vector) by copying q (global vector) to it.
+        Also takes care of auxbc if it is not None and maux > 0.
         """
         ndim = self.grid.ndim
         
-        if whichvec == 'q':
-            q    = self.q
-        elif whichvec == 'aux':
-            q    = self.aux
-
         if ndim == 1:
             qbc[:,mbc:-mbc] = q
         elif ndim == 2:
             qbc[:,mbc:-mbc,mbc:-mbc] = q
         elif ndim == 3:
             qbc[:,mbc:-mbc,mbc:-mbc,mbc:-mbc] = q
+        else:
+            raise Exception("Assumption (1 <= ndim <= 3) violated.")
 
-        return qbc
+        if self.maux > 0 and auxbc is not None:
+            if ndim == 1:
+                auxbc[:,mbc:-mbc] = aux
+            elif ndim == 2:
+                auxbc[:,mbc:-mbc,mbc:-mbc] = aux
+            elif ndim == 3:
+                auxbc[:,mbc:-mbc,mbc:-mbc,mbc:-mbc] = aux
+            else:
+                raise Exception("Assumption (1 <= ndim <= 3) violated.")
+
+        return qbc,auxbc
+
 
     # ========== Copy functionality ==========================================
     def __copy__(self):
