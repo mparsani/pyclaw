@@ -9,8 +9,8 @@ time stepping scheme.
 
 # Solver superclass
 # Solver superclass
-from pyclaw.solver import Solver, CFLError
-import petclaw.sharpclaw.sharpclaw  #SharpClaw solvers for PetClaw
+from pyclaw.solver import Solver
+import petclaw.sharpclaw.sharpclaw  
 
 # Reconstructor
 try:
@@ -147,6 +147,10 @@ class ImplicitSharpClawSolver(Solver):
         self._mthlim = self.limiters
         self._method = None
         self._rk_stages = None
+        self.bVec = None
+        self.fVec = None
+        self.Jac = None
+        self.snes = None
         
         # Call general initialization function
         super(ImplicitSharpClawSolver,self).__init__()
@@ -170,7 +174,7 @@ class ImplicitSharpClawSolver(Solver):
         state = solution.states[0]
     
         # Set up a DA with the appropriate stencil width.
-        state.set_stencil_width(self.num_ghost)
+        state.set_num_ghost(self.num_ghost)
 
         # Set mthlim
         self.set_mthlim()
@@ -194,13 +198,13 @@ class ImplicitSharpClawSolver(Solver):
 
 
         # Ought to implement a copy constructor for State
-        self.impsol_stage = State(state.grid)
-        self.impsol_stage.num_eqn             = state.num_eqn
-        self.impsol_stage.num_aux             = state.num_aux
-        self.impsol_stage.aux_global          = state.aux_global
-        self.impsol_stage.t                   = state.t
-        if state.num_aux > 0:
-            self.impsol_stage.aux          = state.aux
+        #self.impsol_stage = State(state.grid)
+        #self.impsol_stage.num_eqn             = state.num_eqn
+        #self.impsol_stage.num_aux             = state.num_aux
+        #self.impsol_stage.aux_global          = state.aux_global
+        #self.impsol_stage.t                   = state.t
+        #if state.num_aux > 0:
+        #    self.impsol_stage.aux          = state.aux
         
         
     def step(self,solution):
@@ -308,19 +312,17 @@ class ImplicitSharpClawSolver1D(ImplicitSharpClawSolver):
     time stepping technique.
     """
 
-    def __init__(self,data=None):
+    def __init__(self):
         
         # Set physical dimensions
         self.num_dim = 1
 
         # Call superclass __init__
-        super(ImplicitSharpClawSolver1D,self).__init__(data)
-
-        # Call superclass __init__
-        super(ImplicitSharpClawSolver1D,self).__init__(data)
+        super(ImplicitSharpClawSolver1D,self).__init__()
 
 
-    def setup(self,solutions):
+
+    def setup(self,solution):
         r"""
         Perform essential solver setup. This routine must be called before
         solver.step() may be called.
@@ -335,7 +337,7 @@ class ImplicitSharpClawSolver1D(ImplicitSharpClawSolver):
         if(self.kernel_language == 'Fortran'):
             from sharpclaw1 import clawparams, workspace, reconstruct
             import sharpclaw1
-            state = solutions['n'].states[0]
+            state = solution.states[0]
             state.set_cparam(sharpclaw1)
             self.set_fortran_parameters(state,clawparams,workspace,reconstruct)
 
@@ -370,8 +372,8 @@ class ImplicitSharpClawSolver1D(ImplicitSharpClawSolver):
         state = snes.appctx
 
         # Get some quantities used later on.
-        mx = state.grid.ng[0]
-        dx = state.grid.d[0]
+        mx = state.grid.num_cells[0]
+        dx = state.grid.delta[0]
         num_ghost = self.num_ghost
         dt = self.dt
         
@@ -388,7 +390,8 @@ class ImplicitSharpClawSolver1D(ImplicitSharpClawSolver):
 
         # Have to do this because of how qbc works...
         state.q = reshape(qin,(state.num_eqn,mx),order='F') 
-        qapprox = self.qbc(state)
+        qapprox = self.qbc
+        
 
         # Import module
         from sharpclaw1 import flux1
