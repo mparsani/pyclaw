@@ -9,7 +9,7 @@ time stepping scheme.
 
 # Solver superclass
 # Solver superclass
-from pyclaw.solver import Solver
+from pyclaw.solver import Solver, CFLError
 import petclaw.sharpclaw.sharpclaw  
 
 # Reconstructor
@@ -64,10 +64,8 @@ class ImplicitSharpClawSolver(Solver):
     .. attribute:: time_integrator
 
         Time integrator to be used.
-        Euler: forward Euler method.
-        SSP33: 3-stages, 3rd-order SSP Runge-Kutta method.
-        SSP104: 10-stages, 4th-order SSP Runge-Kutta method.
-        ``Default = 'SSP104'``
+        BEuler: Backward Euler method.
+        ``Default = 'BEuler'``
 
     .. attribute:: char_decomp
 
@@ -146,7 +144,6 @@ class ImplicitSharpClawSolver(Solver):
         self.dq_src = None
         self._mthlim = self.limiters
         self._method = None
-        self._rk_stages = None
         self.bVec = None
         self.fVec = None
         self.Jac = None
@@ -167,9 +164,7 @@ class ImplicitSharpClawSolver(Solver):
         
         # Import modules
         from petsc4py import PETSc
-        from numpy import empty
-        from pyclaw.state import State
-        
+        from numpy import empty 
 
         state = solution.states[0]
     
@@ -251,6 +246,13 @@ class ImplicitSharpClawSolver(Solver):
         #PETSc.Options().setValue('ksp_view',1)
         #PETSc.Options().setValue('snes_view',1)
         #PETSc.Options().setValue('log_summary',1)
+
+        if self.cfl >= self.cfl_max:
+            return False
+        else:
+            return True
+ 
+        
 
     def set_bVecBE(self,state):
         r"""
@@ -372,13 +374,13 @@ class ImplicitSharpClawSolver1D(ImplicitSharpClawSolver):
         state = snes.appctx
 
         # Get some quantities used later on.
-        mx = state.grid.num_cells[0]
+        num_cells = state.grid.num_cells[0]
         dx = state.grid.delta[0]
         num_ghost = self.num_ghost
         dt = self.dt
         
         # Define and set to zero the ratio between dt and dx 
-        dtdx = np.zeros( (mx+2*num_ghost) ) + dt/dx
+        dtdx = np.zeros( (num_cells+2*num_ghost) ) + dt/dx
 
         # Auxbc is set here and not outside of this function because it is 
         # more general. Indeed aux could depend on q which changes at each 
@@ -386,10 +388,10 @@ class ImplicitSharpClawSolver1D(ImplicitSharpClawSolver):
         if state.num_aux>0:
             state.aux = self.auxbc(state)
         else:
-            aux = np.empty((state.num_aux,mx+2*num_ghost), order='F')
+            aux = np.empty((state.num_aux,num_cells+2*num_ghost), order='F')
 
         # Have to do this because of how qbc works...
-        state.q = reshape(qin,(state.num_eqn,mx),order='F') 
+        state.q = reshape(qin,(state.num_eqn,num_cells),order='F') 
         qapprox = self.qbc
         
 
@@ -398,7 +400,9 @@ class ImplicitSharpClawSolver1D(ImplicitSharpClawSolver):
 
         # Call fortran routine 
         ixy = 1
-        sd,self.cfl=flux1(qapprox,aux,dt,state.t,ixy,mx,num_ghost,mx)
+        sd,self.cfl=flux1(qapprox,aux,dt,state.t,ixy,num_cells,num_ghost,num_cells)
+
+        
 
         # Compute the nonlinear vector-valued function
         assert sd.flags['F_CONTIGUOUS']
