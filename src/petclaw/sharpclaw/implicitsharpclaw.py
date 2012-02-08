@@ -132,7 +132,7 @@ class ImplicitSharpClawSolver(Solver):
         self.before_step = before_step
         self.lim_type = 2
         self.weno_order = 5
-        self.time_integrator = 'SSP104'
+        self.time_integrator = 'BEuler'
         self.char_decomp = 0
         self.tfluct_solver = False
         self.aux_time_dep = False
@@ -247,10 +247,12 @@ class ImplicitSharpClawSolver(Solver):
         #PETSc.Options().setValue('snes_view',1)
         #PETSc.Options().setValue('log_summary',1)
 
-        if self.cfl >= self.cfl_max:
-            return False
-        else:
-            return True
+        #if self.cfl >= self.cfl_max:
+        #    return False
+        #else:
+        #    return True
+
+        self.cfl.update_global_max(cfl)
  
         
 
