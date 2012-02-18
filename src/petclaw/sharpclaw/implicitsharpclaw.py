@@ -246,15 +246,7 @@ class ImplicitSharpClawSolver(Solver):
         #PETSc.Options().setValue('ksp_view',1)
         #PETSc.Options().setValue('snes_view',1)
         #PETSc.Options().setValue('log_summary',1)
-
-        #if self.cfl >= self.cfl_max:
-        #    return False
-        #else:
-        #    return True
-
-        self.cfl.update_global_max(cfl)
  
-        
 
     def set_bVecBE(self,state):
         r"""
@@ -403,9 +395,7 @@ class ImplicitSharpClawSolver1D(ImplicitSharpClawSolver):
         # Call fortran routine 
         ixy = 1
         sd,self.cfl=flux1(qapprox,aux,dt,state.t,ixy,num_cells,num_ghost,num_cells)
-
-        
-
+ 
         # Compute the nonlinear vector-valued function
         assert sd.flags['F_CONTIGUOUS']
         nlf.setArray(qapprox[:,num_ghost:-num_ghost]-sd[:,num_ghost:-num_ghost])
