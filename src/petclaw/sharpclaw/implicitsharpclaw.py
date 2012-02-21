@@ -10,10 +10,8 @@ time stepping scheme.
 # Solver superclass
 # Solver superclass
 from pyclaw.solver import Solver, CFLError
+import pyclaw.sharpclaw
 
-# One of the following must be removed
-import pyclaw.sharpclaw.sharpclaw 
-import petclaw.sharpclaw.sharpclaw
 
 # Reconstructor
 try:
@@ -35,7 +33,7 @@ def before_step(solver,solution):
 # ============================================================================
 #  Generic implicit SharpClaw solver class
 # ============================================================================
-class ImplicitSharpClawSolver(????):
+class ImplicitSharpClawSolver(Solver):
     r"""
     Superclass for all ImplicitSharpClawND solvers.
 
@@ -164,16 +162,13 @@ class ImplicitSharpClawSolver(????):
     def initiate(self,solution):
         r"""
         Called before any set of time steps.
-        
-        This routine will be called once before the solver is used via the
-        :class:`~pyclaw.controller.Controller`.
         """
         
         # Import modules
         from petsc4py import PETSc
         from numpy import empty 
 
-        state = solution.states[0]
+        state = solution.state
     
         # Set up a DA with the appropriate stencil width.
         state.set_num_ghost(self.num_ghost)
@@ -214,7 +209,7 @@ class ImplicitSharpClawSolver(????):
         Evolve q over one time step.
 
         """
-        state = solution.states[0]
+        state = solution.state
 
         self.before_step(self,solution)
 
@@ -333,15 +328,12 @@ class ImplicitSharpClawSolver1D(ImplicitSharpClawSolver):
         solver.step() may be called.
 
         Set Fortran data structures (for Clawpack). 
-        """
-
-        self.num_ghost = (self.weno_order+1)/2
-        
+        """ 
         
         # Call parent's "setup" function
         self.initiate(solution)
 
-        state = solution.states[0]         
+        state = solution.state        
         
         # Set Fortran data structure for the 1D implicit SharpClaw solver
         if(self.kernel_language == 'Fortran'):
